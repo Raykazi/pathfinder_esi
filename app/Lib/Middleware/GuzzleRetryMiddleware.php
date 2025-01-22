@@ -99,73 +99,52 @@ class GuzzleRetryMiddleware extends \GuzzleRetry\GuzzleRetryMiddleware {
      * @param callable $nextHandler
      * @param array $defaultOptions
      */
-    public function __construct(callable $nextHandler, array $defaultOptions = []){
-        if($defaultOptions['retry_log_error']){
-            // add callback function for error logging
-            $defaultOptions['on_retry_callback'] = $this->retryCallback();
-        }
-
-        $this->defaultOptions = array_replace($this->defaultOptions, $defaultOptions);
-
-        parent::__construct($nextHandler, $this->defaultOptions);
-    }
+//    public function __construct(callable $nextHandler, array $defaultOptions = []){
+//        if($defaultOptions['retry_log_error']){
+//            // add callback function for error logging
+//            $defaultOptions['on_retry_callback'] = $this->retryCallback();
+//        }
+//
+//        $this->defaultOptions = array_replace($this->defaultOptions, $defaultOptions);
+//
+//        parent::__construct($nextHandler, $this->defaultOptions);
+//    }
 
     /**
      * get callback function for 'on_retry_callback' option
      * @see https://packagist.org/packages/caseyamcl/guzzle_retry_middleware
      * @return callable
      */
-    protected function retryCallback() : callable {
-        return function(
-            int $attemptNumber,
-            float $delay,
-            RequestInterface $request,
-            array $options,
-            ?ResponseInterface $response = null
-        ) : void {
-            if(
-                $options['retry_log_error'] &&                      // log retry errors
-                ($attemptNumber >= $options['max_retry_attempts'])  // retry limit reached
-            ){
-                if(
-                    (is_callable($isLoggable = $options['retry_loggable_callback']) ? $isLoggable($request) : true) &&
-                    is_callable($log = $options['retry_log_callback'])
-                ){
-                    $logData = [
-                        'url'               => $request->getUri()->__toString(),
-                        'retryAttempt'      => $attemptNumber,
-                        'maxRetryAttempts'  => $options['max_retry_attempts'],
-                        'delay'             => $delay
-                    ];
+//    public function retryCallback() : callable {
+//        return function(
+//            int $attemptNumber,
+//            float $delay,
+//            RequestInterface $request,
+//            array $options,
+//            ?ResponseInterface $response = null
+//        ) : void {
+//            if(
+//                $options['retry_log_error'] &&                      // log retry errors
+//                ($attemptNumber >= $options['max_retry_attempts'])  // retry limit reached
+//            ){
+//                if(
+//                    (is_callable($isLoggable = $options['retry_loggable_callback']) ? $isLoggable($request) : true) &&
+//                    is_callable($log = $options['retry_log_callback'])
+//                ){
+//                    $logData = [
+//                        'url'               => $request->getUri()->__toString(),
+//                        'retryAttempt'      => $attemptNumber,
+//                        'maxRetryAttempts'  => $options['max_retry_attempts'],
+//                        'delay'             => $delay
+//                    ];
+//
+//                    $message = $this->getLogMessage($options['retry_log_format'], $request, $attemptNumber, $options['max_retry_attempts'], $response);
+//
+//                    $log($options['retry_log_file'], 'critical', $message, $logData, 'warning');
+//                }
+//            }
+//        };
+//    }
 
-                    $message = $this->getLogMessage($options['retry_log_format'], $request, $attemptNumber, $options['max_retry_attempts'], $response);
 
-                    $log($options['retry_log_file'], 'critical', $message, $logData, 'warning');
-                }
-            }
-        };
-    }
-
-    /**
-     * @param string $message
-     * @param RequestInterface $request
-     * @param int $attemptNumber
-     * @param int $maxRetryAttempts
-     * @param ResponseInterface|null $response
-     * @return string
-     */
-    protected function getLogMessage(string $message, RequestInterface $request, int $attemptNumber, int $maxRetryAttempts, ?ResponseInterface $response = null) : string {
-        $replace = [
-            '{attempt}'     => $attemptNumber,
-            '{maxRetry}'    => $maxRetryAttempts,
-            '{method}'      => $request->getMethod(),
-            '{target}'      => $request->getRequestTarget(),
-            '{version}'     => $request->getProtocolVersion(),
-
-            '{code}'        => $response ? $response->getStatusCode() : 'NULL',
-            '{phrase}'      => $response ? $response->getReasonPhrase() : ''
-        ];
-
-        return str_replace(array_keys($replace), array_values($replace), $message);
-    }
 }

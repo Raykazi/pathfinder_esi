@@ -9,7 +9,7 @@
 namespace Exodus4D\ESI\Client;
 
 
-use lib\logging\LogInterface;
+//use lib\logging\LogInterface;
 use Exodus4D\ESI\Lib\WebClient;
 use Exodus4D\ESI\Lib\RequestConfig;
 use Exodus4D\ESI\Lib\Stream\JsonStreamInterface;
@@ -25,6 +25,8 @@ use Exodus4D\ESI\Config\ConfigInterface;
 use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\HandlerStack;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 
 abstract class AbstractApi extends \Prefab implements ApiInterface {
@@ -768,10 +770,61 @@ abstract class AbstractApi extends \Prefab implements ApiInterface {
             'log_off_status'            => [420],                   // error rate limit -> logged by other middleware
             'log_loggable_callback'     => $this->getIsLoggable(),
             'log_callback'              => $this->log(),
-            'log_file'                  => $this->logFile
+            'log_file'                  => $this->logFile,
+            'on_retry_callback'         => $this->retryCallback()
         ];
     }
+    public function retryCallback() : callable {
+        return function(
+            int $attemptNumber,
+            float $delay,
+            RequestInterface $request,
+            array $options,
+            ?ResponseInterface $response = null
+        ) : void {
+            if(
+                $options['retry_log_error'] &&                      // log retry errors
+                ($attemptNumber >= $options['max_retry_attempts'])  // retry limit reached
+            ){
+                if(
+                    (is_callable($isLoggable = $options['retry_loggable_callback']) ? $isLoggable($request) : true) &&
+                    is_callable($log = $options['retry_log_callback'])
+                ){
+                    $logData = [
+                        'url'               => $request->getUri()->__toString(),
+                        'retryAttempt'      => $attemptNumber,
+                        'maxRetryAttempts'  => $options['max_retry_attempts'],
+                        'delay'             => $delay
+                    ];
+                    $message = $this->getLogMessage($options['retry_log_format'], $request, $attemptNumber, $options['max_retry_attempts'], $response);
 
+                    $log($options['retry_log_file'], 'critical', $message, $logData, 'warning');
+                }
+            }
+        };
+    }
+    /**
+     * @param string $message
+     * @param RequestInterface $request
+     * @param int $attemptNumber
+     * @param int $maxRetryAttempts
+     * @param ResponseInterface|null $response
+     * @return string
+     */
+    protected function getLogMessage(string $message, RequestInterface $request, int $attemptNumber, int $maxRetryAttempts, ?ResponseInterface $response = null) : string {
+        $replace = [
+            '{attempt}'     => $attemptNumber,
+            '{maxRetry}'    => $maxRetryAttempts,
+            '{method}'      => $request->getMethod(),
+            '{target}'      => $request->getRequestTarget(),
+            '{version}'     => $request->getProtocolVersion(),
+
+            '{code}'        => $response ? $response->getStatusCode() : 'NULL',
+            '{phrase}'      => $response ? $response->getReasonPhrase() : ''
+        ];
+
+        return str_replace(array_keys($replace), array_values($replace), $message);
+    }
     /**
      * get configuration for GuzzleCacheMiddleware Middleware
      * @return array
