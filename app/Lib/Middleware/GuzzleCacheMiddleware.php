@@ -16,6 +16,8 @@ use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Promise\FulfilledPromise;
 use GuzzleHttp\Promise\Promise;
 use GuzzleHttp\Promise\RejectedPromise;
+use GuzzleHttp\Promise\Utils;
+use GuzzleHttp\Psr7\Header;
 use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -114,7 +116,7 @@ class GuzzleCacheMiddleware {
      * Will be called at the end of the script
      */
     public function purgeReValidation() : void {
-        \GuzzleHttp\Promise\inspect_all($this->waitingRevalidate);
+        Utils::inspectAll($this->waitingRevalidate);
     }
 
     /**
@@ -159,7 +161,8 @@ class GuzzleCacheMiddleware {
         $minFreshCache  = null;
 
         if($request->hasHeader('Cache-Control')){
-            $reqCacheControl = \GuzzleHttp\Psr7\parse_header($request->getHeader('Cache-Control'));
+            $reqCacheControl = Header::parse($request->getHeader('Cache-Control'));
+
 
             if(GuzzleCacheMiddleware::inArrayDeep($reqCacheControl, 'only-if-cached')){
                 $onlyFromCache = true;
@@ -319,7 +322,7 @@ class GuzzleCacheMiddleware {
     protected static function addToCache(CacheStrategyInterface $cacheStrategy, RequestInterface $request, ResponseInterface $response, $update = false) : ResponseInterface {
         // If the body is not seekable, we have to replace it by a seekable one
         if(!$response->getBody()->isSeekable()){
-            $response = $response->withBody(\GuzzleHttp\Psr7\stream_for($response->getBody()->getContents()));
+            $response = $response->withBody(\GuzzleHttp\Psr7\Utils::streamFor($response->getBody()->getContents()));
         }
 
         if($update){
